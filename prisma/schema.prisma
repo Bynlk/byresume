@@ -1,0 +1,98 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// 用户表（如果将来需要身份验证）
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  password      String?  // Hashed password
+  name          String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  resumes       Resume[]
+  exportEvents  ExportEvent[]
+  aiUsageEvents AIUsageEvent[]
+  sessionEvents SessionEvent[]
+  templateUsages TemplateUsage[]
+  feedbacks     Feedback[]
+}
+
+// 简历表
+model Resume {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  content     String   // 存储简历数据（JSON字符串）
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  exportEvents ExportEvent[]
+  templateUsages TemplateUsage[]
+}
+
+// PDF导出事件
+model ExportEvent {
+  id        String   @id @default(cuid())
+  resumeId  String
+  resume    Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  exportedAt DateTime @default(now())
+  format    String   // "pdf", "png", etc.
+}
+
+// AI使用事件
+model AIUsageEvent {
+  id          String   @id @default(cuid())
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action      String   // "generate", "optimize", "suggest"
+  input       String?
+  output      String?
+  usedAt      DateTime @default(now())
+  model       String?  // "gpt-4", "claude", etc.
+}
+
+// 用户会话事件（用于活跃会话统计）
+model SessionEvent {
+  id          String   @id @default(cuid())
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  sessionId   String
+  startedAt   DateTime @default(now())
+  endedAt     DateTime?
+  duration    Int?     // 秒
+}
+
+// 模板使用统计
+model TemplateUsage {
+  id          String   @id @default(cuid())
+  templateId  String   // 对应模板ID
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  usedAt      DateTime @default(now())
+  resumeId    String?
+  resume      Resume?  @relation(fields: [resumeId], references: [id], onDelete: SetNull)
+}
+
+// 用户反馈
+model Feedback {
+  id          String   @id @default(cuid())
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  email       String?  // 用户邮箱（可选，用于回复反馈）
+  type        String   // "bug", "feature", "suggestion", "other"
+  title       String   // 反馈标题
+  content     String   // 反馈内容
+  rating      Int?     // 评分 1-5
+  status      String   @default("pending") // "pending", "reviewed", "resolved", "rejected"
+  metadata    String?  // 额外元数据（JSON字符串）
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
