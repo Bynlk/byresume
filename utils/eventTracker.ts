@@ -99,8 +99,6 @@ export function recordEvent(event: EventData): void {
     sendEventToServer(event).catch(() => {
       // 静默失败，本地存储已保存
     });
-
-    console.debug('事件已记录:', event);
   } catch (error) {
     // 最后的安全网，如果连内存操作都失败了（极不可能）
     console.error('记录事件失败:', error);
@@ -123,9 +121,8 @@ async function sendEventToServer(event: EventData): Promise<void> {
     if (!response.ok) {
       throw new Error(`服务器响应错误: ${response.status}`);
     }
-  } catch (error) {
+  } catch {
     // 网络错误或服务器不可用，静默失败
-    console.debug('发送事件到服务器失败，将继续使用本地存储:', error);
   }
 }
 

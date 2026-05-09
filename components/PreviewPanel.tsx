@@ -2,6 +2,7 @@
 'use client'
 
 import { useResumeStore } from '@/store/resumeStore'
+import { initialResumeData } from '@/config/initialData'
 import TemplateEngine from '@/lib/resume/TemplateEngine'
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { ZoomIn, ZoomOut, Maximize, RotateCcw } from 'lucide-react'
@@ -9,7 +10,6 @@ import { ZoomIn, ZoomOut, Maximize, RotateCcw } from 'lucide-react'
 export default function PreviewPanel() {
   const { resumeData } = useResumeStore()
   const [scale, setScale] = useState(1)
-  const [exportReady, setExportReady] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const paperContainerRef = useRef<HTMLDivElement>(null)
 
@@ -37,67 +37,22 @@ export default function PreviewPanel() {
   const handleReset = () => setScale(1)
 
   useEffect(() => {
-    calculateScale()
-    window.addEventListener('resize', calculateScale)
-    return () => window.removeEventListener('resize', calculateScale)
+    let timeout: ReturnType<typeof setTimeout>
+    const handleResize = () => {
+      clearTimeout(timeout)
+      timeout = setTimeout(() => {
+        const newScale = calculateScale()
+        if (newScale) setScale(newScale)
+      }, 150)
+    }
+    window.addEventListener('resize', handleResize)
+    return () => {
+      clearTimeout(timeout)
+      window.removeEventListener('resize', handleResize)
+    }
   }, [calculateScale])
 
-  // 在导出前准备元素
-  const prepareForExport = useCallback(() => {
-    if (paperContainerRef.current) {
-      // 临时禁用缩放
-      paperContainerRef.current.style.transform = 'none'
-      paperContainerRef.current.style.transformOrigin = 'top left'
-      paperContainerRef.current.style.marginBottom = '0'
-      setExportReady(true)
-    }
-  }, [])
-
-  // 导出后恢复
-  const restoreAfterExport = useCallback(() => {
-    if (paperContainerRef.current) {
-      // 重新应用缩放
-      paperContainerRef.current.style.transform = `scale(${scale})`
-      paperContainerRef.current.style.transformOrigin = 'top center'
-      paperContainerRef.current.style.marginBottom = `calc(-297mm * (1 - ${scale}))`
-      setExportReady(false)
-    }
-  }, [scale])
-
-  const styles = resumeData.styles || {
-    fontFamily: 'Inter',
-    fontSize: 14,
-    bold: false,
-    italic: false,
-    underline: false,
-    highlight: false,
-    headings: {
-      h1: { size: 24, weight: 'bold', color: '#1e293b' },
-      h2: { size: 20, weight: 'semibold', color: '#334155' },
-      h3: { size: 16, weight: 'medium', color: '#475569' }
-    }
-  }
-
-  // 导出函数供外部调用
-  useEffect(() => {
-    // 扩展Window接口以包含我们的函数
-    interface WindowWithExportFunctions extends Window {
-      __prepareResumeForExport?: () => void
-      __restoreResumeAfterExport?: () => void
-      __isResumeExportReady?: () => boolean
-    }
-
-    const win = window as WindowWithExportFunctions
-    win.__prepareResumeForExport = prepareForExport
-    win.__restoreResumeAfterExport = restoreAfterExport
-    win.__isResumeExportReady = () => exportReady
-
-    return () => {
-      delete win.__prepareResumeForExport
-      delete win.__restoreResumeAfterExport
-      delete win.__isResumeExportReady
-    }
-  }, [prepareForExport, restoreAfterExport, exportReady])
+  const styles = resumeData.styles || initialResumeData.styles
 
   return (
     // 外层容器：负责滚动，占据所有剩余空间

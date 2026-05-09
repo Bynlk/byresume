@@ -69,14 +69,24 @@ export default function AIAssistantPanel({ isOpen, onToggle, className = '' }: A
     }
   }, [loadFromLocalStorage])
 
-  // 当 messages 变化时保存到本地存储
+  // 当 messages 变化时保存到本地存储（流式响应时防抖）
   useEffect(() => {
+    if (isLoading) {
+      const timeout = setTimeout(() => {
+        try {
+          localStorage.setItem('ai-chat-history', JSON.stringify(messages))
+        } catch (error) {
+          console.error('保存聊天记录失败:', error)
+        }
+      }, 1000)
+      return () => clearTimeout(timeout)
+    }
     try {
       localStorage.setItem('ai-chat-history', JSON.stringify(messages))
     } catch (error) {
       console.error('保存聊天记录失败:', error)
     }
-  }, [messages])
+  }, [messages, isLoading])
 
   // 自动滚动到底部
   useEffect(() => {
@@ -128,12 +138,7 @@ export default function AIAssistantPanel({ isOpen, onToggle, className = '' }: A
       setShowConfigModal(true)
       return
     }
-    const analyzeInput = '请分析我当前的简历，给出优化建议'
-    setInput(analyzeInput)
-    // 使用 setTimeout 确保 state 更新后再发送
-    setTimeout(() => {
-      handleSendWithInput(analyzeInput)
-    }, 0)
+    handleSendWithInput('请分析我当前的简历，给出优化建议')
   }
 
   const handleSendWithInput = async (messageText: string) => {
